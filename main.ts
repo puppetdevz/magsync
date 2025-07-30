@@ -1,8 +1,20 @@
-export function add(a: number, b: number): number {
-  return a + b;
+async function fetchMagnificationFile(url: string): Promise<void> {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    const data = await response.json()
+    console.log(data)
+  } catch (error) {
+    console.error('Error fetching or parsing JSON:', error)
+  }
 }
 
-// Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
 if (import.meta.main) {
-  console.log("Add 2 + 3 =", add(2, 3));
+  const url =
+    Deno.args[0] ||
+    'https://raw.githubusercontent.com/Veloera/public-assets/refs/heads/main/defaults/model-ratios/flexible/completion.json'
+  console.log(`Fetching JSON from: ${url}`)
+  await fetchMagnificationFile(url)
 }
