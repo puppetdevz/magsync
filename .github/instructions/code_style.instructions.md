@@ -2,30 +2,38 @@
 applyTo: '**/*.ts'
 ---
 
-1. **代码风格**：
+# Project general coding standards
 
-   - 使用 2 个空格进行缩进。
-   - 每行代码长度不超过 120 个字符。
-   - 使用单引号而不是双引号。
-   - 在对象字面量的属性之间使用空格。
-   - 每条语句尾部不加分号。
+## General Coding Guidelines
 
-2. **函数和变量命名**：
+- 使用 2 个空格进行缩进。
+- 每行代码长度不超过 120 个字符。
+- 使用单引号而不是双引号。
+- 在对象字面量的属性之间使用空格。
+- 每条语句尾部不加分号。
 
-   - 使用 camelCase 命名法。
-   - 函数名应清晰描述其功能，通常使用动词开头。
+## Naming Conventions
 
-3. **错误处理**：
+- Use PascalCase for component names, interfaces, and type aliases
+- Use camelCase for variables, functions, and methods
+- Prefix private class members with underscore (\_)
+- Use ALL_CAPS for constants
+- 函数名应清晰描述其功能，通常使用动词开头。
 
-   - 使用 try-catch 语句捕获错误。
-   - 在 catch 块中记录错误信息，并提供友好的用户反馈。
+## Error Handling
 
-4. **注释**：
+- 使用 try-catch 语句捕获错误。
+- Use try/catch blocks for async operations
+- Implement proper error boundaries in React components
+- Always log errors with contextual information
+- 在 catch 块中记录错误信息，并提供友好的用户反馈。
 
-   - 重要的逻辑块应有适当的注释。
-   - 使用 JSDoc 风格的注释为函数和类提供文档。
+## Documentation
 
-5. **测试**：
+- 重要的逻辑块应有适当的注释。
+- 使用 JSDoc 风格的注释为函数和类提供文档。
 
-   - 为关键功能编写单元测试。
-   - 使用 Deno 的内置测试功能。
+## Testing
+
+- 为关键功能编写单元测试。
+- 使用 Deno 的内置测试功能。
