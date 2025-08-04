@@ -1,5 +1,5 @@
-import { assertEquals, assertRejects } from "@std/assert";
-import { mergeData, fetchNewDataFromURL, fetchOldDataFromDB } from "./main.ts";
+import { assertEquals, assertRejects } from '@std/assert'
+import { mergeData, fetchNewDataFromURL, fetchOldDataFromDB } from './main.ts'
 
 Deno.test('mergeData 应该正确合并两个对象', () => {
   const oldData = { a: 1, b: 2, c: 3 }
@@ -62,52 +62,47 @@ Deno.test({
     assertEquals(Object.keys(resultData).length > 0, true, '应该包含模型配置数据')
     assertEquals(hasGptModels || hasClaudeModels, true, '应该包含已知的模型配置')
   },
-});
+})
 
 // 测试数据库连接异常处理
 Deno.test({
-  name: "fetchOldDataFromDB 在数据库连接异常时应该抛出错误",
+  name: 'fetchOldDataFromDB 在数据库连接异常时应该抛出错误',
   permissions: { env: true },
   async fn() {
     // 设置错误的数据库配置
     const originalEnv = {
-      DB_HOST: Deno.env.get("DB_HOST"),
-      DB_USER: Deno.env.get("DB_USER"), 
-      DB_PASSWORD: Deno.env.get("DB_PASSWORD"),
-    };
-    
+      DB_HOST: Deno.env.get('DB_HOST'),
+      DB_USER: Deno.env.get('DB_USER'),
+      DB_PASSWORD: Deno.env.get('DB_PASSWORD'),
+    }
+
     try {
       // 设置无效的数据库配置
-      Deno.env.set("DB_HOST", "invalid-host");
-      Deno.env.set("DB_USER", "invalid-user");
-      Deno.env.set("DB_PASSWORD", "invalid-password");
-      
+      Deno.env.set('DB_HOST', 'invalid-host')
+      Deno.env.set('DB_USER', 'invalid-user')
+      Deno.env.set('DB_PASSWORD', 'invalid-password')
+
       // 应该抛出数据库连接错误
-      await assertRejects(
-        () => fetchOldDataFromDB("test_table"),
-        Error,
-        "数据库连接失败"
-      );
-      
+      await assertRejects(() => fetchOldDataFromDB('test_table'), Error, '数据库连接失败')
     } finally {
       // 恢复原始环境变量
       if (originalEnv.DB_HOST) {
-        Deno.env.set("DB_HOST", originalEnv.DB_HOST);
+        Deno.env.set('DB_HOST', originalEnv.DB_HOST)
       } else {
-        Deno.env.delete("DB_HOST");
+        Deno.env.delete('DB_HOST')
       }
       if (originalEnv.DB_USER) {
-        Deno.env.set("DB_USER", originalEnv.DB_USER);
+        Deno.env.set('DB_USER', originalEnv.DB_USER)
       } else {
-        Deno.env.delete("DB_USER");
+        Deno.env.delete('DB_USER')
       }
       if (originalEnv.DB_PASSWORD) {
-        Deno.env.set("DB_PASSWORD", originalEnv.DB_PASSWORD);
+        Deno.env.set('DB_PASSWORD', originalEnv.DB_PASSWORD)
       } else {
-        Deno.env.delete("DB_PASSWORD");
+        Deno.env.delete('DB_PASSWORD')
       }
     }
   },
-});
+})
 
 // Contains AI-generated edits.

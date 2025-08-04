@@ -20,7 +20,8 @@ type DataObject = Record<string, unknown>
  * 数据库查询结果类型
  */
 interface DatabaseRow {
-  data: DataObject
+  key: string
+  value: string
 }
 
 /**
@@ -39,7 +40,7 @@ function getDatabaseConfig(): DatabaseConfig {
 /**
  * 从 PostgreSQL 数据库获取旧数据
  */
-async function fetchOldDataFromDB(tableName: string = 'config'): Promise<DataObject> {
+async function fetchOldDataFromDB(tableName: string = 'options'): Promise<DataObject> {
   const config = getDatabaseConfig()
 
   // 检查必需的连接参数是否存在
@@ -55,9 +56,9 @@ async function fetchOldDataFromDB(tableName: string = 'config'): Promise<DataObj
     await client.connect()
     console.log('📊 已连接到 PostgreSQL 数据库')
 
-    // 查询数据，假设数据以 JSON 格式存储在 data 列中
+    // 查询数据，假设数据以 JSON 格式存储在 value 列中
     const result = await client.queryObject<DatabaseRow>(
-      `SELECT key, value FROM ${tableName} ORDER BY updated_at DESC LIMIT 1`
+      `SELECT key, value FROM ${tableName} WHERE key = 'CompletionRatio' LIMIT 1`
     )
 
     if (result.rows.length === 0) {
@@ -65,7 +66,8 @@ async function fetchOldDataFromDB(tableName: string = 'config'): Promise<DataObj
       return {}
     }
 
-    const oldData = result.rows[0].data
+    // 解析 JSON 字符串为对象
+    const oldData = JSON.parse(result.rows[0].value) as DataObject
     console.log('✅ 成功从数据库获取旧数据')
     return oldData
   } catch (error) {
@@ -138,9 +140,80 @@ function mergeData(oldData: DataObject, newData: DataObject): DataObject {
 }
 
 /**
+ * 将合并后的数据保存到 PostgreSQL 数据库
+ */
+async function saveDataToDB(mergedData: DataObject, tableName: string = 'options'): Promise<void> {
+  const config = getDatabaseConfig()
+
+  // 检查必需的连接参数是否存在
+  if (!config.password) {
+    throw new Error('数据库密码未设置，无法保存数据')
+  }
+
+  let client: Client
+
+  try {
+    client = new Client(config)
+    await client.connect()
+    console.log('💾 正在连接数据库进行数据保存...')
+
+    // 将对象转换为 JSON 字符串
+    const jsonValue = JSON.stringify(mergedData)
+
+    // 先尝试更新现有记录
+    const updateResult = await client.queryObject(`
+      UPDATE ${tableName} 
+      SET value = $1 
+      WHERE key = 'CompletionRatio'
+    `, [jsonValue])
+
+    // 如果没有更新任何行，则插入新记录
+    if (updateResult.rowCount === 0) {
+      await client.queryObject(`
+        INSERT INTO ${tableName} (key, value) 
+        VALUES ('CompletionRatio', $1)
+      `, [jsonValue])
+    }
+
+    console.log('✅ 成功将合并后的数据保存到数据库')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+
+    console.error('🚨 保存数据到数据库时发生错误！')
+    console.error('='.repeat(60))
+    console.error('📋 错误信息:', errorMessage)
+    console.error('🔧 数据库配置:')
+    console.error(`   主机: ${config.hostname}:${config.port}`)
+    console.error(`   数据库: ${config.database}`)
+    console.error(`   用户名: ${config.username}`)
+    console.error('🔍 排查建议:')
+    console.error('   1. 检查 PostgreSQL 服务是否启动')
+    console.error('   2. 验证数据库连接参数是否正确')
+    console.error('   3. 确认数据库用户有写入权限')
+    console.error('   4. 检查表结构是否正确')
+    console.error('='.repeat(60))
+
+    throw new Error(`保存数据失败: ${errorMessage}`)
+  } finally {
+    try {
+      if (client!) {
+        await client.end()
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.warn('⚠️  关闭数据库连接时出现警告:', errorMessage)
+    }
+  }
+}
+
+/**
  * 主要的数据获取和合并函数
  */
-async function fetchMagnificationFile(url: string, tableName?: string): Promise<DataObject> {
+async function fetchMagnificationFile(
+  url: string,
+  tableName?: string,
+  shouldSaveToDb?: boolean
+): Promise<DataObject> {
   try {
     console.log('🚀 开始执行 MagSync 数据同步...')
 
@@ -149,6 +222,14 @@ async function fetchMagnificationFile(url: string, tableName?: string): Promise<
 
     // 合并数据
     const mergedData = mergeData(oldData, newData)
+
+    // 如果指定保存到数据库，则执行保存操作
+    if (shouldSaveToDb) {
+      console.log('💾 开始保存合并后的数据到数据库...')
+      await saveDataToDB(mergedData, tableName)
+    } else {
+      console.log('🔸 跳过数据库保存操作（未指定保存参数）')
+    }
 
     // 输出合并结果
     console.log('📋 合并后的数据:')
@@ -166,22 +247,24 @@ async function fetchMagnificationFile(url: string, tableName?: string): Promise<
 }
 
 // 导出函数供测试使用
-export { fetchMagnificationFile, fetchOldDataFromDB, fetchNewDataFromURL, mergeData }
+export { fetchMagnificationFile, fetchOldDataFromDB, fetchNewDataFromURL, mergeData, saveDataToDB }
 
 if (import.meta.main) {
   const url =
-    Deno.args[0] ||
+    (Deno.args[0] && Deno.args[0].trim()) ||
     'https://raw.githubusercontent.com/Veloera/public-assets/refs/heads/main/defaults/model-ratios/flexible/completion.json'
 
-  const tableName = Deno.args[1] // 可选的表名参数
+  const tableName = (Deno.args[1] && Deno.args[1].trim()) || undefined // 可选的表名参数
+  const shouldSaveToDb = Deno.args[2] === 'true' || Deno.args[2] === '1' // 第三个参数控制是否保存到数据库
 
   console.log(`🎯 URL: ${url}`)
   if (tableName) {
     console.log(`📊 表名: ${tableName}`)
   }
+  console.log(`💾 保存到数据库: ${shouldSaveToDb ? '是' : '否'}`)
 
   try {
-    await fetchMagnificationFile(url, tableName)
+    await fetchMagnificationFile(url, tableName, shouldSaveToDb)
     console.log('🎉 MagSync 同步完成！')
   } catch (error) {
     // 确保程序以非零状态码退出
